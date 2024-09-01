@@ -28,44 +28,73 @@ class Schema {
 
     for (const key in this.schema) {
       const fieldSchema = this.schema[key];
-      const { type: expectedType, required, custom } = fieldSchema;
       const actualValue = object[key];
-      const actualType = typeof actualValue;
 
-      // Check if the field is required and missing
-      if (required && (actualValue === undefined || actualValue === null)) {
-        errors.push({
-          key,
-          expectedType,
-          actualType: null,
-          message: `The field '${key}' is required but was not provided.`
-        });
-      }
-      // Check if the field is present and has the correct type
-      else if (actualValue !== undefined && actualType !== expectedType) {
-        errors.push({
-          key,
-          expectedType,
-          actualType,
-          message: `Expected type '${expectedType}' but found type '${actualType}' for key '${key}'.`
-        });
-      }
-
-      // Check custom validation if provided
-      else if (custom && actualValue !== undefined) {
-        const customValidationResult = custom(actualValue);
-        if (customValidationResult !== true) {
-          errors.push({
-            key,
-            expectedType,
-            actualType,
-            message: typeof customValidationResult === 'string' ? customValidationResult : `Custom validation failed for key '${key}'.`
-          });
-        }
+      const fieldErrors = this.validateField(key, fieldSchema, actualValue);
+      if (fieldErrors) {
+        errors.push(...fieldErrors);
       }
     }
 
     return errors.length ? { valid: false, errors } : { valid: true };
+  }
+
+  private validateField(key: string, fieldSchema: FieldSchema, actualValue: any): ValidationError[] | null {
+    const { type: expectedType, required, custom } = fieldSchema;
+    const errors: ValidationError[] = [];
+
+    if (this.isMissingRequiredField(required, actualValue)) {
+      errors.push(this.createMissingFieldError(key, expectedType));
+    } else if (actualValue !== undefined) {
+      if (!this.isCorrectType(expectedType, actualValue)) {
+        errors.push(this.createTypeError(key, expectedType, typeof actualValue));
+      }
+      if (custom && !this.passesCustomValidation(custom, actualValue)) {
+        errors.push(this.createCustomValidationError(key, expectedType, actualValue, custom));
+      }
+    }
+
+    return errors.length ? errors : null;
+  }
+
+  private isMissingRequiredField(required: boolean | undefined, actualValue: any): boolean {
+    return !!required && (actualValue === undefined || actualValue === null);
+  }
+
+  private isCorrectType(expectedType: string, actualValue: any): boolean {
+    return typeof actualValue === expectedType;
+  }
+
+  private passesCustomValidation(custom: (value: any) => boolean | string, actualValue: any): boolean {
+    return custom(actualValue) === true;
+  }
+
+  private createMissingFieldError(key: string, expectedType: string): ValidationError {
+    return {
+      key,
+      expectedType,
+      actualType: null,
+      message: `The field '${key}' is required but was not provided.`
+    };
+  }
+
+  private createTypeError(key: string, expectedType: string, actualType: string): ValidationError {
+    return {
+      key,
+      expectedType,
+      actualType,
+      message: `Expected type '${expectedType}' but found type '${actualType}' for key '${key}'.`
+    };
+  }
+
+  private createCustomValidationError(key: string, expectedType: string, actualValue: any, custom: (value: any) => boolean | string): ValidationError {
+    const customMessage = custom(actualValue);
+    return {
+      key,
+      expectedType,
+      actualType: typeof actualValue,
+      message: typeof customMessage === 'string' ? customMessage : `Custom validation failed for key '${key}'.`
+    };
   }
 }
 
