@@ -4,5 +4,4 @@
 npm run build
 
 ## Test the Module
-
 npm test
