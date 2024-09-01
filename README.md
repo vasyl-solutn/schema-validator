@@ -6,7 +6,8 @@
 ### Define a Schema
 Create a schema using the Schema class. The schema defines the expected types, whether fields are required, and any custom validation rules.
 
-```const userSchema = new Schema({
+```
+const userSchema = new Schema({
   name: { type: 'string', required: true },
   age: {
     type: 'number',
