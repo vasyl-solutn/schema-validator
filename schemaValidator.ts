@@ -13,6 +13,7 @@ interface ValidationResult {
 interface FieldSchema {
   type: string;
   required?: boolean;
+  custom?: (value: any) => boolean | string;
 }
 
 class Schema {
@@ -27,7 +28,7 @@ class Schema {
 
     for (const key in this.schema) {
       const fieldSchema = this.schema[key];
-      const { type: expectedType, required } = fieldSchema;
+      const { type: expectedType, required, custom } = fieldSchema;
       const actualValue = object[key];
       const actualType = typeof actualValue;
 
@@ -48,6 +49,19 @@ class Schema {
           actualType,
           message: `Expected type '${expectedType}' but found type '${actualType}' for key '${key}'.`
         });
+      }
+
+      // Check custom validation if provided
+      else if (custom && actualValue !== undefined) {
+        const customValidationResult = custom(actualValue);
+        if (customValidationResult !== true) {
+          errors.push({
+            key,
+            expectedType,
+            actualType,
+            message: typeof customValidationResult === 'string' ? customValidationResult : `Custom validation failed for key '${key}'.`
+          });
+        }
       }
     }
 
